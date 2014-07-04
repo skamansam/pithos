@@ -22,6 +22,6 @@ if sys.platform != 'win32':
     if len(sys.argv) == 1:
         sys.argv.append('-tv')
 
-from pithos import pithos
+from pithos import application
 
-pithos.main()
+application.main()
