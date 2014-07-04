@@ -45,7 +45,7 @@ else:
     fullPath = os.getcwd()
 sys.path.insert(0, os.path.dirname(fullPath))
 
-from . import AboutPithosDialog, PreferencesPithosDialog, StationsDialog
+from . import AboutPithosDialog, PreferencesPithosDialog, StationsDialog, settings
 from .util import parse_proxy, open_browser
 from .pithosconfig import get_ui_file, get_media_file, VERSION
 from .gobject_worker import GObjectWorker
@@ -163,11 +163,7 @@ class PithosWindow(Gtk.ApplicationWindow):
 
         self.prefs_dlg = PreferencesPithosDialog.NewPreferencesPithosDialog()
         self.prefs_dlg.set_transient_for(self)
-        self.preferences = self.prefs_dlg.get_preferences()
-
-        if self.prefs_dlg.fix_perms():
-            # Changes were made, save new config variable
-            self.prefs_dlg.save()
+        self.preferences = settings.preferences
 
         self.init_core()
         self.init_ui()
@@ -917,7 +913,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         self.prefs_dlg.hide()
 
         if response == Gtk.ResponseType.OK:
-            self.preferences = self.prefs_dlg.get_preferences()
+            self.preferences = settings.preferences
             if not is_startup:
                 if (   self.preferences['proxy'] != old_prefs['proxy']
                     or self.preferences['control_proxy'] != old_prefs['control_proxy']):
@@ -952,5 +948,5 @@ class PithosWindow(Gtk.ApplicationWindow):
         """on_destroy - called when the PithosWindow is close. """
         self.stop()
         self.preferences['last_station_id'] = self.current_station_id
-        self.prefs_dlg.save()
+        settings.save(self.preferences)
         self.quit()

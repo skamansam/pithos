@@ -21,25 +21,14 @@ import logging
 
 from gi.repository import Gtk
 from gi.repository import GObject
-from gi.repository import GLib
 
+from . import settings
 from .pithosconfig import get_ui_file
-from .pandora.data import *
 from .plugins.scrobble import LastFmAuth
-
-pacparser_imported = False
-try:
-    import pacparser
-    pacparser_imported = True
-except ImportError:
-    logging.info("Could not import python-pacparser.")
-
-config_home = GLib.get_user_config_dir()
-configfilename = os.path.join(config_home, 'pithos.ini')
+from .pandora.data import *
 
 class PreferencesPithosDialog(Gtk.Dialog):
     __gtype_name__ = "PreferencesPithosDialog"
-    prefernces = {}
 
     def __init__(self):
         """__init__ - This function is typically not called directly.
@@ -53,7 +42,7 @@ class PreferencesPithosDialog(Gtk.Dialog):
 
         pass
 
-    def finish_initializing(self, builder):
+    def finish_initializing(self, builder, preferences):
         """finish_initalizing should be called after parsing the ui definition
         and creating a AboutPithosDialog object with it in order to finish
         initializing the start of the new AboutPithosDialog instance.
@@ -73,116 +62,8 @@ class PreferencesPithosDialog(Gtk.Dialog):
         audio_quality_combo.pack_start(render_text, True)
         audio_quality_combo.add_attribute(render_text, "text", 1)
 
-        self.__load_preferences()
-
-
-    def get_preferences(self):
-        """get_preferences  - returns a dictionary object that contains
-        preferences for pithos.
-        """
-        return self.__preferences
-
-    def __load_preferences(self):
-        #default preferences that will be overwritten if some are saved
-        self.__preferences = {
-            "username":'',
-            "password":'',
-            "notify":True,
-            "last_station_id":None,
-            "proxy":'',
-            "control_proxy":'',
-            "control_proxy_pac":'',
-            "show_icon": False,
-            "lastfm_key": False,
-            "enable_mediakeys":True,
-            "enable_screensaverpause":False,
-            "volume": 1.0,
-            # If set, allow insecure permissions. Implements CVE-2011-1500
-            "unsafe_permissions": False,
-            "audio_quality": default_audio_quality,
-            "pandora_one": False,
-            "force_client": None,
-        }
-
-        try:
-            f = open(configfilename)
-        except IOError:
-            f = []
-
-        for line in f:
-            sep = line.find('=')
-            key = line[:sep]
-            val = line[sep+1:].strip()
-            if val == 'None': val=None
-            elif val == 'False': val=False
-            elif val == 'True': val=True
-            self.__preferences[key]=val
-
-        if 'audio_format' in self.__preferences:
-            # Pithos <= 0.3.17, replaced by audio_quality
-            del self.__preferences['audio_format']
-
-        if not pacparser_imported and self.__preferences['control_proxy_pac'] != '':
-            self.__preferences['control_proxy_pac'] = ''
-
+        self.__preferences = preferences
         self.setup_fields()
-
-    def fix_perms(self):
-        """Apply new file permission rules, fixing CVE-2011-1500.
-        If the file is 0644 and if "unsafe_permissions" is not True,
-           chmod 0600
-        If the file is world-readable (but not exactly 0644) and if
-        "unsafe_permissions" is not True:
-           chmod o-rw
-        """
-        def complain_unsafe():
-            # Display this message iff permissions are unsafe, which is why
-            #   we don't just check once and be done with it.
-            logging.warning("Ignoring potentially unsafe permissions due to user override.")
-
-        changed = False
-
-        if os.path.exists(configfilename):
-            # We've already written the file, get current permissions
-            config_perms = stat.S_IMODE(os.stat(configfilename).st_mode)
-            if config_perms == (stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH):
-                if self.__preferences["unsafe_permissions"]:
-                    return complain_unsafe()
-                # File is 0644, set to 0600
-                logging.warning("Removing world- and group-readable permissions, to fix CVE-2011-1500 in older software versions. To force, set unsafe_permissions to True in pithos.ini.")
-                os.chmod(configfilename, stat.S_IRUSR | stat.S_IWUSR)
-                changed = True
-
-            elif config_perms & stat.S_IROTH:
-                if self.__preferences["unsafe_permissions"]:
-                    return complain_unsafe()
-                # File is o+r,
-                logging.warning("Removing world-readable permissions, configuration should not be globally readable. To force, set unsafe_permissions to True in pithos.ini.")
-                config_perms ^= stat.S_IROTH
-                os.chmod(configfilename, config_perms)
-                changed = True
-
-            if config_perms & stat.S_IWOTH:
-                if self.__preferences["unsafe_permissions"]:
-                    return complain_unsafe()
-                logging.warning("Removing world-writable permissions, configuration should not be globally writable. To force, set unsafe_permissions to True in pithos.ini.")
-                config_perms ^= stat.S_IWOTH
-                os.chmod(configfilename, config_perms)
-                changed = True
-
-        return changed
-
-    def save(self):
-        existed = os.path.exists(configfilename)
-        f = open(configfilename, 'w')
-
-        if not existed:
-            # make the file owner-readable and writable only
-            os.fchmod(f.fileno(), (stat.S_IRUSR | stat.S_IWUSR))
-
-        for key in self.__preferences:
-            f.write('%s=%s\n'%(key, self.__preferences[key]))
-        f.close()
 
     def setup_fields(self):
         self.builder.get_object('prefs_username').set_text(self.__preferences["username"])
@@ -191,7 +72,7 @@ class PreferencesPithosDialog(Gtk.Dialog):
         self.builder.get_object('prefs_proxy').set_text(self.__preferences["proxy"])
         self.builder.get_object('prefs_control_proxy').set_text(self.__preferences["control_proxy"])
         self.builder.get_object('prefs_control_proxy_pac').set_text(self.__preferences["control_proxy_pac"])
-        if not pacparser_imported:
+        if not settings.pacparser_imported:
             self.builder.get_object('prefs_control_proxy_pac').set_sensitive(False)
             self.builder.get_object('prefs_control_proxy_pac').set_tooltip_text("Please install python-pacparser")
 
@@ -209,7 +90,6 @@ class PreferencesPithosDialog(Gtk.Dialog):
 
     def ok(self, widget, data=None):
         """ok - The user has elected to save the changes.
-        Called before the dialog returns Gtk.RESONSE_OK from run().
         """
 
         self.__preferences["username"] = self.builder.get_object('prefs_username').get_text()
@@ -227,30 +107,11 @@ class PreferencesPithosDialog(Gtk.Dialog):
         if active_idx != -1: # ignore unknown format
             self.__preferences["audio_quality"] = audio_quality.get_model()[active_idx][0]
 
-        self.save()
+        settings.save(self.__preferences)
+        self.destroy()
 
     def cancel(self, widget, data=None):
         """cancel - The user has elected cancel changes.
-        Called before the dialog returns Gtk.ResponseType.CANCEL for run()
         """
 
-        self.setup_fields() # restore fields to previous values
-        pass
-
-
-def NewPreferencesPithosDialog():
-    """NewPreferencesPithosDialog - returns a fully instantiated
-    PreferencesPithosDialog object. Use this function rather than
-    creating a PreferencesPithosDialog instance directly.
-    """
-
-    builder = Gtk.Builder()
-    builder.add_from_file(get_ui_file('preferences'))
-    dialog = builder.get_object("preferences_pithos_dialog")
-    dialog.finish_initializing(builder)
-    return dialog
-
-if __name__ == "__main__":
-    dialog = NewPreferencesPithosDialog()
-    dialog.show()
-    Gtk.main()
+        self.destroy()
