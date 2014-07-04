@@ -23,12 +23,15 @@ from gi.repository import Gtk, Gio, GLib
 from .pithosconfig import get_ui_file, get_media_file, VERSION
 from .pithos import PithosWindow
 
+
 class PithosApplication(Gtk.Application):
     def __init__(self):
         # Use org.gnome to avoid conflict with existing dbus interface net.kevinmehall
         Gtk.Application.__init__(self, application_id='org.gnome.pithos',
                                 flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.window = None
+        self.stations = None
+        self.prefs = None
         self.options = None
 
     def do_startup(self):
@@ -101,13 +104,29 @@ class PithosApplication(Gtk.Application):
         self.quit()
 
     def stations_cb(self, action, param):
-        self.window.show_stations()
+        if not self.stations:
+            builder = Gtk.Builder()
+            builder.add_from_file(get_ui_file('stations'))    
+            
+            self.stations = builder.get_object("stations_dialog")
+            self.stations.finish_initializing(builder, self.window)
+            self.stations.set_transient_for(self.window)
+            self.stations.show_all()
+        
+        self.stations.present()
 
     def prefs_cb(self, action, param):
         self.window.show_preferences()
 
     def about_cb(self, action, param):
-        self.window.show_about()
+        builder = Gtk.Builder()
+        builder.add_from_file(get_ui_file('about'))
+
+        about = builder.get_object("about_pithos_dialog")
+        about.finish_initializing(builder)
+        about.set_transient_for(self.window)
+        about.set_version(VERSION)
+        about.present()
 
     def quit_cb(self, action, param):
         self.quit()

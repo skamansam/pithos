@@ -907,14 +907,6 @@ class PithosWindow(Gtk.ApplicationWindow):
     def station_properties(self, *ignore):
         open_browser(self.current_station.info_url)
 
-    def show_about(self):
-        """about - display the about box for pithos """
-        about = AboutPithosDialog.NewAboutPithosDialog()
-        about.set_transient_for(self)
-        about.set_version(VERSION)
-        response = about.run()
-        about.destroy()
-
     def show_preferences(self, is_startup=False):
         """preferences - display the preferences window for pithos """
         if is_startup:
@@ -939,14 +931,6 @@ class PithosWindow(Gtk.ApplicationWindow):
             else:
                 self.prefs_dlg.set_type_hint(Gdk.WindowTypeHint.DIALOG)
             load_plugins(self)
-
-    def show_stations(self):
-        if self.stations_dlg:
-            self.stations_dlg.present()
-        else:
-            self.stations_dlg = StationsDialog.NewStationsDialog(self)
-            self.stations_dlg.set_transient_for(self)
-            self.stations_dlg.show_all()
 
     def refresh_stations(self, *ignore):
         self.worker_run(self.pandora.get_stations, (), self.process_stations, "Refreshing stations...")

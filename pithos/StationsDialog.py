@@ -194,22 +194,3 @@ class StationsDialog(Gtk.Dialog):
         
         logging.info("closed dialog")
         return True
-
-def NewStationsDialog(pithos):
-    """NewStationsDialog - returns a fully instantiated
-    Dialog object. Use this function rather than
-    creating StationsDialog instance directly.
-    
-    """
-
-    builder = Gtk.Builder()
-    builder.add_from_file(get_ui_file('stations'))    
-    dialog = builder.get_object("stations_dialog")
-    dialog.finish_initializing(builder, pithos)
-    return dialog
-
-if __name__ == "__main__":
-    dialog = NewStationsDialog()
-    dialog.show()
-    Gtk.main()
-

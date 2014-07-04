@@ -51,22 +51,3 @@ class AboutPithosDialog(Gtk.AboutDialog):
     def activate_link_cb(self, wid, uri):
         open_browser(uri)
         return True
-
-def NewAboutPithosDialog():
-    """NewAboutPithosDialog - returns a fully instantiated
-    AboutPithosDialog object. Use this function rather than
-    creating a AboutPithosDialog instance directly.
-    
-    """
-
-    builder = Gtk.Builder()
-    builder.add_from_file(get_ui_file('about'))    
-    dialog = builder.get_object("about_pithos_dialog")
-    dialog.finish_initializing(builder)
-    return dialog
-
-if __name__ == "__main__":
-    dialog = NewAboutPithosDialog()
-    dialog.show()
-    Gtk.main()
-
