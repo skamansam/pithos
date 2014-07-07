@@ -22,7 +22,8 @@ from gi.repository import Gtk, Gio, GLib
 
 from .pithosconfig import get_ui_file, get_media_file, VERSION
 from .pithos import PithosWindow
-
+from .plugin import load_plugins
+from . import settings
 
 class PithosApplication(Gtk.Application):
     def __init__(self):
@@ -87,6 +88,12 @@ class PithosApplication(Gtk.Application):
         return 0
 
     def do_activate(self):
+        prefs = settings.load_preferences()
+
+        have_login = False
+        if prefs['username'] and prefs['password']:
+            have_login = True
+        
         if not self.window:
             logging.info("Pithos %s" %VERSION)
             
@@ -95,9 +102,12 @@ class PithosApplication(Gtk.Application):
 
             self.window = builder.get_object("pithos_window")
             self.window.set_application(self)
-            self.window.finish_initializing(builder, self.options)
+            self.window.finish_initializing(builder, self.options, have_login)
 
-        self.window.present()
+        if not have_login:
+            self.prefs_cb(None, None)
+        else:
+            self.window.present()
 
     def do_shutdown(self):
         Gtk.Application.do_shutdown(self)
@@ -116,7 +126,30 @@ class PithosApplication(Gtk.Application):
         self.stations.present()
 
     def prefs_cb(self, action, param):
-        self.window.show_preferences()
+        if not self.prefs:
+            builder = Gtk.Builder()
+            builder.add_from_file(get_ui_file('preferences'))
+
+            is_startup = action is None # Action is only None if called by us
+
+            self.prefs = builder.get_object("preferences_pithos_dialog")
+            self.prefs.finish_initializing(builder, is_startup)
+            self.prefs.set_transient_for(self.window)
+            self.prefs.connect('response', self.prefs_response_cb)               
+            self.prefs.show()
+
+        self.prefs.present()
+
+    def prefs_response_cb(self, dialog, response):
+        if not self.window.pandora:
+            self.window.init_connection()
+
+        if response == Gtk.ResponseType.OK:
+            self.window.reload_preferences()
+
+        self.prefs = None
+        dialog.destroy()
+        self.window.present()
 
     def about_cb(self, action, param):
         builder = Gtk.Builder()

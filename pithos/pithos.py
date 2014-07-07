@@ -20,6 +20,7 @@ import re
 import os, time
 import logging
 import signal
+from copy import copy
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -147,7 +148,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         """
         pass
 
-    def finish_initializing(self, builder, cmdopts):
+    def finish_initializing(self, builder, cmdopts, connect):
         """finish_initalizing should be called after parsing the ui definition
         and creating a PithosWindow object with it in order to finish
         initializing the start of the new PithosWindow instance.
@@ -161,9 +162,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         self.builder = builder
         self.builder.connect_signals(self)
 
-        self.prefs_dlg = PreferencesPithosDialog.NewPreferencesPithosDialog()
-        self.prefs_dlg.set_transient_for(self)
-        self.preferences = settings.preferences
+        self.preferences = copy(settings.preferences)
 
         self.init_core()
         self.init_ui()
@@ -174,14 +173,10 @@ class PithosWindow(Gtk.ApplicationWindow):
         if sys.platform != 'win32':
             self.dbus_service = PithosDBusProxy(self)
             self.mpris = PithosMprisService(self)
-
-        if not self.preferences['username']:
-            self.show_preferences(is_startup=True)
-
-        self.pandora = make_pandora(self.cmdopts.test)
-        self.set_proxy()
-        self.set_audio_quality()
-        self.pandora_connect()
+        
+        self.pandora = None
+        if connect:
+            self.init_connection()
 
     def init_core(self):
         #                                Song object            display text  icon  album art
@@ -225,6 +220,12 @@ class PithosWindow(Gtk.ApplicationWindow):
         aa = GdkPixbuf.Pixbuf.new_from_file(get_media_file('album'))
 
         self.default_album_art = aa.scale_simple(ALBUM_ART_SIZE, ALBUM_ART_SIZE, GdkPixbuf.InterpType.BILINEAR)
+
+    def init_connection(self):
+        self.pandora = make_pandora(self.cmdopts.test)
+        self.set_proxy()
+        self.set_audio_quality()
+        self.pandora_connect()
 
     def init_ui(self):
         GLib.set_application_name("Pithos")
@@ -393,6 +394,22 @@ class PithosWindow(Gtk.ApplicationWindow):
                 callback()
 
         self.worker_run('connect', args, pandora_ready, message, 'login')
+    
+    def reload_preferences(self):
+        old_prefs = self.preferences
+        self.preferences = settings.preferences
+
+        if (   self.preferences['proxy'] != old_prefs['proxy']
+            or self.preferences['control_proxy'] != old_prefs['control_proxy']):
+            self.set_proxy()
+        if self.preferences['audio_quality'] != old_prefs['audio_quality']:
+            self.set_audio_quality()
+        if (   self.preferences['username'] != old_prefs['username']
+            or self.preferences['password'] != old_prefs['password']
+            or self.preferences['pandora_one'] != old_prefs['pandora_one']):
+            self.pandora_connect()
+        
+        load_plugins(self)
 
     def process_stations(self, *ignore):
         self.stations_model.clear()
@@ -576,7 +593,9 @@ class PithosWindow(Gtk.ApplicationWindow):
             logging.info("Manual retry")
             return retry_cb()
         elif response == 3:
-            self.show_preferences()
+            pass
+            #fixme
+            #self.show_preferences()
 
     def fatal_error_dialog(self, message, submsg):
         dialog = self.builder.get_object("fatal_error_dialog")
@@ -902,31 +921,6 @@ class PithosWindow(Gtk.ApplicationWindow):
 
     def station_properties(self, *ignore):
         open_browser(self.current_station.info_url)
-
-    def show_preferences(self, is_startup=False):
-        """preferences - display the preferences window for pithos """
-        if is_startup:
-            self.prefs_dlg.set_type_hint(Gdk.WindowTypeHint.NORMAL)
-
-        old_prefs = dict(self.preferences)
-        response = self.prefs_dlg.run()
-        self.prefs_dlg.hide()
-
-        if response == Gtk.ResponseType.OK:
-            self.preferences = settings.preferences
-            if not is_startup:
-                if (   self.preferences['proxy'] != old_prefs['proxy']
-                    or self.preferences['control_proxy'] != old_prefs['control_proxy']):
-                    self.set_proxy()
-                if self.preferences['audio_quality'] != old_prefs['audio_quality']:
-                    self.set_audio_quality()
-                if (   self.preferences['username'] != old_prefs['username']
-                    or self.preferences['password'] != old_prefs['password']
-                    or self.preferences['pandora_one'] != old_prefs['pandora_one']):
-                        self.pandora_connect()
-            else:
-                self.prefs_dlg.set_type_hint(Gdk.WindowTypeHint.DIALOG)
-            load_plugins(self)
 
     def refresh_stations(self, *ignore):
         self.worker_run(self.pandora.get_stations, (), self.process_stations, "Refreshing stations...")

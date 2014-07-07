@@ -36,6 +36,8 @@ preferences = {}
 
 def load_preferences():
     global preferences
+    
+    logging.info("Loading config file.")
 
     #default preferences that will be overwritten if some are saved
     preferences = {
@@ -132,7 +134,8 @@ def fix_perms():
 
 def save(new_preferences):
     global preferences
-    
+
+    logging.info("Saving config file.")
     existed = os.path.exists(configfilename)
     
     with open(configfilename, 'w') as f:

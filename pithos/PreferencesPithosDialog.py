@@ -18,9 +18,9 @@ import sys
 import os
 import stat
 import logging
+from copy import copy
 
-from gi.repository import Gtk
-from gi.repository import GObject
+from gi.repository import Gtk, Gdk, GObject
 
 from . import settings
 from .pithosconfig import get_ui_file
@@ -42,7 +42,7 @@ class PreferencesPithosDialog(Gtk.Dialog):
 
         pass
 
-    def finish_initializing(self, builder, preferences):
+    def finish_initializing(self, builder, is_startup):
         """finish_initalizing should be called after parsing the ui definition
         and creating a AboutPithosDialog object with it in order to finish
         initializing the start of the new AboutPithosDialog instance.
@@ -61,8 +61,13 @@ class PreferencesPithosDialog(Gtk.Dialog):
         render_text = Gtk.CellRendererText()
         audio_quality_combo.pack_start(render_text, True)
         audio_quality_combo.add_attribute(render_text, "text", 1)
+        
+        if is_startup:
+            self.set_type_hint(Gdk.WindowTypeHint.NORMAL) 
+            cancel_button = self.builder.get_object('button_cancel')
+            cancel_button.set_sensitive(False)
 
-        self.__preferences = preferences
+        self.__preferences = copy(settings.preferences)
         self.setup_fields()
 
     def setup_fields(self):
@@ -88,30 +93,21 @@ class PreferencesPithosDialog(Gtk.Dialog):
 
         self.lastfm_auth = LastFmAuth(self.__preferences, "lastfm_key", self.builder.get_object('lastfm_btn'))
 
-    def ok(self, widget, data=None):
-        """ok - The user has elected to save the changes.
-        """
+    def response_cb(self, dialog, response):
+        if response == Gtk.ResponseType.OK:
+            self.__preferences["username"] = self.builder.get_object('prefs_username').get_text()
+            self.__preferences["password"] = self.builder.get_object('prefs_password').get_text()
+            self.__preferences["pandora_one"] = self.builder.get_object('checkbutton_pandora_one').get_active()
+            self.__preferences["proxy"] = self.builder.get_object('prefs_proxy').get_text()
+            self.__preferences["control_proxy"] = self.builder.get_object('prefs_control_proxy').get_text()
+            self.__preferences["control_proxy_pac"] = self.builder.get_object('prefs_control_proxy_pac').get_text()
+            self.__preferences["notify"] = self.builder.get_object('checkbutton_notify').get_active()
+            self.__preferences["enable_screensaverpause"] = self.builder.get_object('checkbutton_screensaverpause').get_active()
+            self.__preferences["show_icon"] = self.builder.get_object('checkbutton_icon').get_active()
 
-        self.__preferences["username"] = self.builder.get_object('prefs_username').get_text()
-        self.__preferences["password"] = self.builder.get_object('prefs_password').get_text()
-        self.__preferences["pandora_one"] = self.builder.get_object('checkbutton_pandora_one').get_active()
-        self.__preferences["proxy"] = self.builder.get_object('prefs_proxy').get_text()
-        self.__preferences["control_proxy"] = self.builder.get_object('prefs_control_proxy').get_text()
-        self.__preferences["control_proxy_pac"] = self.builder.get_object('prefs_control_proxy_pac').get_text()
-        self.__preferences["notify"] = self.builder.get_object('checkbutton_notify').get_active()
-        self.__preferences["enable_screensaverpause"] = self.builder.get_object('checkbutton_screensaverpause').get_active()
-        self.__preferences["show_icon"] = self.builder.get_object('checkbutton_icon').get_active()
+            audio_quality = self.builder.get_object('prefs_audio_quality')
+            active_idx = audio_quality.get_active()
+            if active_idx != -1: # ignore unknown format
+                self.__preferences["audio_quality"] = audio_quality.get_model()[active_idx][0]
 
-        audio_quality = self.builder.get_object('prefs_audio_quality')
-        active_idx = audio_quality.get_active()
-        if active_idx != -1: # ignore unknown format
-            self.__preferences["audio_quality"] = audio_quality.get_model()[active_idx][0]
-
-        settings.save(self.__preferences)
-        self.destroy()
-
-    def cancel(self, widget, data=None):
-        """cancel - The user has elected cancel changes.
-        """
-
-        self.destroy()
+            settings.save(self.__preferences)
