@@ -148,7 +148,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         """
         pass
 
-    def finish_initializing(self, builder, cmdopts, connect):
+    def finish_initializing(self, builder, cmdopts, connect, app):
         """finish_initalizing should be called after parsing the ui definition
         and creating a PithosWindow object with it in order to finish
         initializing the start of the new PithosWindow instance.
@@ -166,6 +166,7 @@ class PithosWindow(Gtk.ApplicationWindow):
 
         self.init_core()
         self.init_ui()
+        self.init_actions(app)
 
         self.plugins = {}
         load_plugins(self)
@@ -280,6 +281,64 @@ class PithosWindow(Gtk.ApplicationWindow):
         self.stations_combo.pack_start(render_text, True)
         self.stations_combo.add_attribute(render_text, "text", 1)
         self.stations_combo.set_row_separator_func(lambda model, iter, data=None: model.get_value(iter, 0) is None, None)
+
+    def init_actions(self, app):
+        # TODO: Cleanup, possibily move into glade
+
+        action = Gio.SimpleAction.new('playpause', None)
+        self.add_action(action)
+        app.add_accelerator('space', 'win.playpause', None)
+        action.connect('activate', self.user_playpause)
+        
+        action = Gio.SimpleAction.new('playselected', None)
+        self.add_action(action)
+        app.add_accelerator('Return', 'win.playselected', None)
+        action.connect('activate', self.start_selected_song)
+        
+        action = Gio.SimpleAction.new('songinfo', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>i', 'win.songinfo', None)
+        action.connect('activate', self.info_song)
+        
+        action = Gio.SimpleAction.new('volumeup', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>Up', 'win.volumeup', None)
+        action.connect('activate', self.volume_up)
+        
+        action = Gio.SimpleAction.new('volumedown', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>Down', 'win.volumedown', None)
+        action.connect('activate', self.volume_down)
+        
+        action = Gio.SimpleAction.new('skip', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>Right', 'win.skip', None)
+        action.connect('activate', self.next_song)
+        
+        action = Gio.SimpleAction.new('love', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>l', 'win.love', None)
+        action.connect('activate', self.love_song)
+        
+        action = Gio.SimpleAction.new('ban', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>b', 'win.ban', None)
+        action.connect('activate', self.ban_song)
+        
+        action = Gio.SimpleAction.new('tired', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>t', 'win.tired', None)
+        action.connect('activate', self.tired_song)
+        
+        action = Gio.SimpleAction.new('unrate', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>u', 'win.unrate', None)
+        action.connect('activate', self.unrate_song)
+        
+        action = Gio.SimpleAction.new('bookmark', None)
+        self.add_action(action)
+        app.add_accelerator('<Primary>d', 'win.bookmark', None)
+        action.connect('activate', self.bookmark_song)
 
     def worker_run(self, fn, args=(), callback=None, message=None, context='net'):
         if context and message:
@@ -812,8 +871,14 @@ class PithosWindow(Gtk.ApplicationWindow):
         sel = self.songs_treeview.get_selection().get_selected()
         if sel:
             return self.songs_treeview.get_model().get_value(sel[1], 0)
+    
+    def start_selected_song(self, *ignore):
+        playable = self.selected_song().index > self.current_song_index
+        if playable:
+            self.start_song(self.selected_song().index)
+        return playable
 
-    def love_song(self, song=None):
+    def love_song(self, *ignore, song=None):
         song = song or self.current_song
         def callback(l):
             self.update_song_row(song)
@@ -821,7 +886,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         self.worker_run(song.rate, (RATE_LOVE,), callback, "Loving song...")
 
 
-    def ban_song(self, song=None):
+    def ban_song(self, *ignore, song=None):
         song = song or self.current_song
         def callback(l):
             self.update_song_row(song)
@@ -830,14 +895,14 @@ class PithosWindow(Gtk.ApplicationWindow):
         if song is self.current_song:
             self.next_song()
 
-    def unrate_song(self, song=None):
+    def unrate_song(self, *ignore, song=None):
         song = song or self.current_song
         def callback(l):
             self.update_song_row(song)
             self.emit('song-rating-changed', song)
         self.worker_run(song.rate, (RATE_NONE,), callback, "Removing song rating...")
 
-    def tired_song(self, song=None):
+    def tired_song(self, *ignore, song=None):
         song = song or self.current_song
         def callback(l):
             self.update_song_row(song)
@@ -846,32 +911,35 @@ class PithosWindow(Gtk.ApplicationWindow):
         if song is self.current_song:
             self.next_song()
 
-    def bookmark_song(self, song=None):
+    def bookmark_song(self, *ignore, song=None):
         song = song or self.current_song
         self.worker_run(song.bookmark, (), None, "Bookmarking...")
 
     def bookmark_song_artist(self, song=None):
         song = song or self.current_song
         self.worker_run(song.bookmark_artist, (), None, "Bookmarking...")
-
-    def on_menuitem_love(self, widget):
-        self.love_song(self.selected_song())
-
-    def on_menuitem_ban(self, widget):
-        self.ban_song(self.selected_song())
-
-    def on_menuitem_unrate(self, widget):
-        self.unrate_song(self.selected_song())
-
-    def on_menuitem_tired(self, widget):
-        self.tired_song(self.selected_song())
-
-    def on_menuitem_info(self, widget):
-        song = self.selected_song()
+    
+    def info_song(self, *ignore, song=None):
+        song = song or self.current_song
         open_browser(song.songDetailURL)
 
+    def on_menuitem_love(self, widget):
+        self.love_song(song=self.selected_song())
+
+    def on_menuitem_ban(self, widget):
+        self.ban_song(song=self.selected_song())
+
+    def on_menuitem_unrate(self, widget):
+        self.unrate_song(song=self.selected_song())
+
+    def on_menuitem_tired(self, widget):
+        self.tired_song(song=self.selected_song())
+
+    def on_menuitem_info(self, widget):
+        self.info_song(song=self.selected_song())
+
     def on_menuitem_bookmark_song(self, widget):
-        self.bookmark_song(self.selected_song())
+        self.bookmark_song(song=self.selected_song())
 
     def on_menuitem_bookmark_artist(self, widget):
         self.bookmark_song_artist(self.selected_song())
@@ -898,9 +966,7 @@ class PithosWindow(Gtk.ApplicationWindow):
 
             if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
                 logging.info("Double clicked on song %s", self.selected_song().index)
-                if self.selected_song().index <= self.current_song_index:
-                    return False
-                self.start_song(self.selected_song().index)
+                return self.start_selected_song()
 
     def set_player_volume(self, value):
         logging.info('%.3f' % value)
@@ -915,6 +981,12 @@ class PithosWindow(Gtk.ApplicationWindow):
 
         if new_volume != old_volume:
             self.volume.set_property("value", new_volume)
+    
+    def volume_up(self, *ignore):
+        self.adjust_volume(+2)
+
+    def volume_down(self, *ignore):
+        self.adjust_volume(-2)
 
     def on_volume_change_event(self, volumebutton, value):
         self.set_player_volume(value)
@@ -928,11 +1000,6 @@ class PithosWindow(Gtk.ApplicationWindow):
     def bring_to_top(self, *ignore):
         self.show()
         self.present()
-
-    def on_kb_playpause(self, widget=None, data=None):
-        if not isinstance(widget.get_focus(), Gtk.Button) and data.keyval == 32:
-            self.playpause()
-            return True
 
     def quit(self, widget=None, data=None):
         """quit - signal handler for closing the PithosWindow"""

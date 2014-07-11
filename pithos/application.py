@@ -102,7 +102,7 @@ class PithosApplication(Gtk.Application):
 
             self.window = builder.get_object("pithos_window")
             self.window.set_application(self)
-            self.window.finish_initializing(builder, self.options, have_login)
+            self.window.finish_initializing(builder, self.options, have_login, self)
 
         if not have_login:
             self.prefs_cb(None, None)
