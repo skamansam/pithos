@@ -122,6 +122,7 @@
                                 <property name="can_focus">True</property>
                                 <property name="hexpand">True</property>
                                 <property name="input_purpose">email</property>
+                                <signal name="changed" handler="login_changed_cb" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -150,6 +151,7 @@
                                 <property name="can_focus">True</property>
                                 <property name="visibility">False</property>
                                 <property name="input_purpose">password</property>
+                                <signal name="changed" handler="login_changed_cb" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>

@@ -62,10 +62,16 @@ class PreferencesPithosDialog(Gtk.Dialog):
         audio_quality_combo.pack_start(render_text, True)
         audio_quality_combo.add_attribute(render_text, "text", 1)
         
+        self.ok_button = self.builder.get_object('button_ok')
+        self.email_entry = self.builder.get_object('prefs_username')
+        self.pass_entry = self.builder.get_object('prefs_password')
+        
         if is_startup:
             self.set_type_hint(Gdk.WindowTypeHint.NORMAL) 
             cancel_button = self.builder.get_object('button_cancel')
             cancel_button.set_sensitive(False)
+            self.ok_button.set_sensitive(False)
+            self.ok_button.set_tooltip_text('You must have an email and password.')
 
         self.__preferences = copy(settings.preferences)
         self.setup_fields()
@@ -111,3 +117,17 @@ class PreferencesPithosDialog(Gtk.Dialog):
                 self.__preferences["audio_quality"] = audio_quality.get_model()[active_idx][0]
 
             settings.save(self.__preferences)
+    
+    def login_changed_cb(self, entry):
+        text = entry.get_text()
+        
+        if not text:
+            entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, 'dialog-error')
+            entry.set_icon_tooltip_text(Gtk.EntryIconPosition.SECONDARY, 'You must have an email and password.')
+        else:
+            entry.set_icon_from_stock(Gtk.EntryIconPosition.SECONDARY, None)
+        
+        if not self.email_entry.get_text() or not self.pass_entry.get_text():
+            self.ok_button.set_sensitive(False)
+        else:
+            self.ok_button.set_sensitive(True)

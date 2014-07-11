@@ -135,7 +135,8 @@ class PithosApplication(Gtk.Application):
             self.prefs = builder.get_object("preferences_pithos_dialog")
             self.prefs.finish_initializing(builder, is_startup)
             self.prefs.set_transient_for(self.window)
-            self.prefs.connect('response', self.prefs_response_cb)               
+            self.prefs.connect('response', self.prefs_response_cb)
+            self.prefs.connect('close', self.prefs_close_cb, is_startup)             
             self.prefs.show()
 
         self.prefs.present()
@@ -150,6 +151,10 @@ class PithosApplication(Gtk.Application):
         self.prefs = None
         dialog.destroy()
         self.window.present()
+    
+    def prefs_close_cb(self, dialog, is_startup):
+        if is_startup:
+            self.quit()
 
     def about_cb(self, action, param):
         builder = Gtk.Builder()
