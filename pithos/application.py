@@ -105,7 +105,7 @@ class PithosApplication(Gtk.Application):
             self.window.finish_initializing(builder, self.options, have_login, self)
 
         if not have_login:
-            self.prefs_cb(None, None)
+            self.prefs_cb(is_startup=True)
         else:
             self.window.present()
 
@@ -125,12 +125,10 @@ class PithosApplication(Gtk.Application):
         
         self.stations.present()
 
-    def prefs_cb(self, action, param):
+    def prefs_cb(self, *ignore, is_startup=False):
         if not self.prefs:
             builder = Gtk.Builder()
             builder.add_from_file(get_ui_file('preferences'))
-
-            is_startup = action is None # Action is only None if called by us
 
             self.prefs = builder.get_object("preferences_pithos_dialog")
             self.prefs.finish_initializing(builder, is_startup)
