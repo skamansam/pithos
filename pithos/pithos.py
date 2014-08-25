@@ -82,7 +82,7 @@ class CellRendererAlbumArt(Gtk.CellRenderer):
         GObject.GObject.__init__(self)
         self.icon = None
         self.pixbuf = None
-        self.rate_bg = GdkPixbuf.Pixbuf.new_from_file(get_media_file('rate'))
+        self.rate_bg = GdkPixbuf.Pixbuf.new_from_resource(get_media_file('rate'))
 
     __gproperties__ = {
         'icon': (str, 'icon', 'icon', '', GObject.PARAM_READWRITE),
@@ -218,7 +218,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         self.worker = GObjectWorker()
         self.art_worker = GObjectWorker()
 
-        aa = GdkPixbuf.Pixbuf.new_from_file(get_media_file('album'))
+        aa = GdkPixbuf.Pixbuf.new_from_resource(get_media_file('album'))
 
         self.default_album_art = aa.scale_simple(ALBUM_ART_SIZE, ALBUM_ART_SIZE, GdkPixbuf.InterpType.BILINEAR)
 

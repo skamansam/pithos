@@ -16,7 +16,7 @@
 
 # where your project will head for your data (for instance, images and ui files)
 # by default, this is data, relative your trunk layout
-__pithos_data_directory__ = 'data/'
+__pithos_data_directory__ = 'resources/'
 __license__ = 'GPL-3'
 
 VERSION = '1.0.0'
@@ -32,28 +32,19 @@ ui_files = {
     'search': 'SearchDialog.ui',
     'stations': 'StationsDialog.ui',
     'main': 'PithosWindow.ui',
-    'menu': 'app_menu.ui'
 }
 
 media_files = {
-    'icon': 'icon.svg',
+    'icon': 'tray_icon.png',
     'rate': 'rate_bg.png',
     'album': 'album_default.png'
 }
 
 def get_media_file(name):
-    media = os.path.join(getdatapath(), 'media', media_files[name])
-    if not os.path.exists(media):
-        media = None
-        
-    return media
+    return '/org/pithos/icons/' + media_files[name]
 
 def get_ui_file(name):
-    ui_filename = os.path.join(getdatapath(), 'ui', ui_files[name])
-    if not os.path.exists(ui_filename):
-        ui_filename = None
-        
-    return ui_filename
+    return '/org/pithos/ui/' + ui_files[name]
 
 def get_data_file(*path_segments):
     """Get the full path to a data file.

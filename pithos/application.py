@@ -20,15 +20,20 @@ import logging
 import argparse
 from gi.repository import Gtk, Gio, GLib
 
-from .pithosconfig import get_ui_file, get_media_file, VERSION
+from .pithosconfig import get_ui_file, get_media_file, get_data_file, VERSION
 from .pithos import PithosWindow
 from .plugin import load_plugins
 from . import settings
 
 class PithosApplication(Gtk.Application):
     def __init__(self):
-        # Use org.gnome to avoid conflict with existing dbus interface net.kevinmehall
-        Gtk.Application.__init__(self, application_id='org.gnome.pithos',
+        # Setup resources
+        resource = Gio.resource_load (get_data_file('pithos.gresource'))
+        if not resource:
+            self.quit()
+        Gio.resources_register (resource)
+
+        Gtk.Application.__init__(self, application_id='org.pithos',
                                 flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.window = None
         self.stations = None
@@ -37,12 +42,6 @@ class PithosApplication(Gtk.Application):
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
-
-        # Setup appmenu
-        builder = Gtk.Builder()
-        builder.add_from_file(get_ui_file('menu'))
-        menu = builder.get_object("app-menu")
-        self.set_app_menu(menu)
 
         action = Gio.SimpleAction.new("stations", None)
         action.connect("activate", self.stations_cb)
@@ -98,7 +97,7 @@ class PithosApplication(Gtk.Application):
             logging.info("Pithos %s" %VERSION)
             
             builder = Gtk.Builder()
-            builder.add_from_file(get_ui_file('main'))
+            builder.add_from_resource(get_ui_file('main'))
 
             self.window = builder.get_object("pithos_window")
             self.window.set_application(self)
@@ -116,7 +115,7 @@ class PithosApplication(Gtk.Application):
     def stations_cb(self, action, param):
         if not self.stations:
             builder = Gtk.Builder()
-            builder.add_from_file(get_ui_file('stations'))    
+            builder.add_from_resource(get_ui_file('stations'))    
             
             self.stations = builder.get_object("stations_dialog")
             self.stations.finish_initializing(builder, self.window)
@@ -128,7 +127,7 @@ class PithosApplication(Gtk.Application):
     def prefs_cb(self, *ignore, is_startup=False):
         if not self.prefs:
             builder = Gtk.Builder()
-            builder.add_from_file(get_ui_file('preferences'))
+            builder.add_from_resource(get_ui_file('preferences'))
 
             self.prefs = builder.get_object("preferences_pithos_dialog")
             self.prefs.finish_initializing(builder, is_startup)
@@ -156,7 +155,7 @@ class PithosApplication(Gtk.Application):
 
     def about_cb(self, action, param):
         builder = Gtk.Builder()
-        builder.add_from_file(get_ui_file('about'))
+        builder.add_from_resource(get_ui_file('about'))
 
         about = builder.get_object("about_pithos_dialog")
         about.finish_initializing(builder)

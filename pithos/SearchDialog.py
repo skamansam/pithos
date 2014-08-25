@@ -111,7 +111,7 @@ def NewSearchDialog(worker_run):
     """
 
     builder = Gtk.Builder()
-    builder.add_from_file(get_ui_file('search'))    
+    builder.add_from_resource(get_ui_file('search'))    
     dialog = builder.get_object("search_dialog")
     dialog.finish_initializing(builder, worker_run)
     return dialog

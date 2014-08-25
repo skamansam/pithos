@@ -44,7 +44,7 @@ class AboutPithosDialog(Gtk.AboutDialog):
         self.builder = builder
         self.builder.connect_signals(self)
 
-        self.set_logo(GdkPixbuf.Pixbuf.new_from_file_at_scale(get_media_file('icon'), -1, 96, True))
+        self.set_logo(GdkPixbuf.Pixbuf.new_from_resource_at_scale(get_media_file('icon'), -1, 96, True))
 
         #code for other initialization actions should be added here
 

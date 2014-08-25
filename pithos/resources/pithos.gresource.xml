@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/pithos">
+    <file preprocess="xml-stripblanks">gtk/menus.ui</file>
+    <file preprocess="xml-stripblanks">gtk/menus-traditional.ui</file>
+
+    <file preprocess="xml-stripblanks">ui/AboutPithosDialog.ui</file>
+    <file preprocess="xml-stripblanks">ui/about_pithos_dialog.xml</file>
+    <file preprocess="xml-stripblanks">ui/PithosWindow.ui</file>
+    <file preprocess="xml-stripblanks">ui/pithos_window.xml</file>
+    <file preprocess="xml-stripblanks">ui/PreferencesPithosDialog.ui</file>
+    <file preprocess="xml-stripblanks">ui/preferences_pithos_dialog.xml</file>
+    <file preprocess="xml-stripblanks">ui/SearchDialog.ui</file>
+    <file preprocess="xml-stripblanks">ui/search_dialog.xml</file>
+    <file preprocess="xml-stripblanks">ui/StationsDialog.ui</file>
+    <file preprocess="xml-stripblanks">ui/stations_dialog.xml</file>
+
+    <file preprocess="to-pixdata" compressed="true">icons/album_default.png</file>
+    <file preprocess="to-pixdata" compressed="true">icons/tray_icon.png</file>
+    <file preprocess="to-pixdata" compressed="true">icons/rate_bg.png</file>
+  </gresource>
+</gresources>
