@@ -214,7 +214,6 @@ class PithosWindow(Gtk.ApplicationWindow):
         self.current_station = None
         self.current_station_id = self.preferences.get('last_station_id')
 
-        self.buffer_percent = 100
         self.auto_retrying_auth = False
         self.have_stations = False
         self.playcount = 0
@@ -252,6 +251,7 @@ class PithosWindow(Gtk.ApplicationWindow):
 
         self.songs_treeview = self.builder.get_object('songs_treeview')
         self.songs_treeview.set_model(self.songs_model)
+        self.buffer_progressbar = self.builder.get_object('buffer-progress')
 
         title_col   = Gtk.TreeViewColumn()
 
@@ -462,7 +462,6 @@ class PithosWindow(Gtk.ApplicationWindow):
             return self.next_song()
 
         logging.info("Starting song: index = %i"%(song_index))
-        self.buffer_percent = 0
         self.song_started = False
         self.player.set_property("uri", self.current_song.audioUrl)
         self.play()
@@ -725,15 +724,16 @@ class PithosWindow(Gtk.ApplicationWindow):
         # 100% doesn't mean the entire song is downloaded, but it does mean that it's safe to play.
         # trying to play before 100% will cause stuttering.
         percent = message.parse_buffering()
-        self.buffer_percent = percent
         if percent < 100:
             self.player.set_state(Gst.State.PAUSED)
+            self.buffer_progressbar.show()
+            self.buffer_progressbar.set_fraction(percent / 100)
         else:
             if self.playing:
                 self.play()
                 self.song_started = True
-        self.update_song_row()
-        logging.debug("Buffering (%i%%)"%self.buffer_percent)
+            self.buffer_progressbar.hide()
+        logging.debug("Buffering (%i%%)" %percent)
 
     def set_volume_cb(self, volume):
         # Convert to the cubic scale that the volume slider uses
@@ -775,8 +775,6 @@ class PithosWindow(Gtk.ApplicationWindow):
                 msg.append("%s / %s" %(pos_str, dur_str))
                 if not self.playing:
                     msg.append("Paused")
-            if self.buffer_percent < 100:
-                msg.append("Buffering (%i%%)"%self.buffer_percent)
         if song.message:
             msg.append(song.message)
         msg = " - ".join(msg)
