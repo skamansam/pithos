@@ -14,14 +14,16 @@
 #with this program.  If not, see <http://www.gnu.org/licenses/>.
 ### END LICENSE
 
-import os
 import logging
-import webbrowser
 from urllib.parse import splittype, splituser, splitpasswd
 
 import gi
 gi.require_version('Secret', '1')
-from gi.repository import Secret
+from gi.repository import (
+    GLib,
+    Secret,
+    Gtk
+)
 
 _ACCOUNT_SCHEMA = Secret.Schema.new('io.github.Pithos.Account', Secret.SchemaFlags.NONE, 
                                     {"email": Secret.SchemaAttributeType.STRING})
@@ -30,13 +32,25 @@ _ACCOUNT_SCHEMA = Secret.Schema.new('io.github.Pithos.Account', Secret.SchemaFla
 def get_account_password(email):
     return Secret.password_lookup_sync(_ACCOUNT_SCHEMA, {"email": email}, None) or ''
 
-def set_account_password(email, password):
+def _clear_account_password(email):
+    return Secret.password_clear_sync(_ACCOUNT_SCHEMA, {"email": email}, None)
+
+def set_account_password(email, password, previous_email=None):
+    if previous_email and previous_email != email:
+        if not _clear_account_password(previous_email):
+            logging.warning('Failed to clear previous account')
+
+    if not password:
+        return _clear_account_password(email)
+
     attrs = {"email": email}
-    if password:
-        Secret.password_store_sync(_ACCOUNT_SCHEMA, attrs, Secret.COLLECTION_DEFAULT,
-                                    "Pandora Account", password, None)
-    else:
-        Secret.password_clear_sync(_ACCOUNT_SCHEMA, attrs, None)
+    if password == get_account_password(email):
+        logging.debug('Password unchanged')
+        return False
+
+    Secret.password_store_sync(_ACCOUNT_SCHEMA, attrs, Secret.COLLECTION_DEFAULT,
+                                "Pandora Account", password, None)
+    return True
 
 def parse_proxy(proxy):
     """ _parse_proxy from urllib """
@@ -62,11 +76,17 @@ def parse_proxy(proxy):
         user = password = None
     return scheme, user, password, hostport
 
-def open_browser(url):
+def open_browser(url, parent=None, timestamp=0):
     logging.info("Opening URL {}".format(url))
-    webbrowser.open(url)
-    if isinstance(webbrowser.get(), webbrowser.BackgroundBrowser):
-        try:
-            os.wait() # workaround for http://bugs.python.org/issue5993
-        except os.ChildProcessError:
-            pass
+    if not timestamp:
+        timestamp = Gtk.get_current_event_time()
+    try:
+        if hasattr(Gtk, 'show_uri_on_window'):
+            Gtk.show_uri_on_window(parent, url, timestamp)
+        else: # Gtk <= 3.20
+            screen = None
+            if parent:
+                screen = parent.get_screen()
+            Gtk.show_uri(screen, url, timestamp)
+    except GLib.Error as e:
+        logging.warning('Failed to open URL: {}'.format(e.message))

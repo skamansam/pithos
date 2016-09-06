@@ -12,10 +12,13 @@ pandora_PYTHON = $(wildcard pithos/pandora/*.py)
 pluginsdir = $(pithosdir)/plugins
 plugins_PYTHON = $(wildcard pithos/plugins/*.py)
 
+pluginsdbusdir = $(pithosdir)/plugins/dbus_util
+pluginsdbus_PYTHON = $(wildcard pithos/plugins/dbus_util/*.py)
+
 bin_SCRIPTS = bin/pithos
 bin/pithos: bin/pithos.in
 	@$(MKDIR_P) bin
-	$(AM_V_GEN)sed                              \
+	$(AM_V_GEN)$(SED)                     \
 		-e s!\@prefix\@!$(prefix)!          \
 		-e s!\@datadir\@!$(datadir)!        \
 		-e s!\@pkgdatadir\@!$(pkgdatadir)!  \
@@ -24,15 +27,27 @@ bin/pithos: bin/pithos.in
 		-e s!\@pythondir\@!$(pythondir)!    \
 		-e s!\@pyexecdir\@!$(pyexecdir)!    \
 		-e s!\@VERSION\@!$(VERSION)!        \
+		-e s!\@PYTHON\@!$(PYTHON)!          \
 		< $< > $@
 	@chmod a+x $@
 
-run: $(BUILT_SOURCES) data/gschemas.compiled
-	env GSETTINGS_SCHEMA_DIR=$(srcdir)/data $(srcdir)/bin/pithos
+run: $(BUILT_SOURCES) data/gschemas.compiled bin/pithos
+	env GSETTINGS_SCHEMA_DIR=$(srcdir)/data $(srcdir)/bin/pithos -v
 
 # ------------ data ----------------
 
-gsettings_SCHEMAS = data/pithos.gschema.xml
+if HAVE_HELP2MAN
+
+# This is generally only ran by maintainers and the result kept in tree
+data/pithos.1: bin/pithos pithos/application.py
+	@$(MKDIR_P) data
+	$(AM_V_GEN)$(HELP2MAN) $< --no-info -o $@
+
+endif
+
+man1_MANS = data/pithos.1
+
+gsettings_SCHEMAS = data/io.github.Pithos.gschema.xml
 @GSETTINGS_RULES@
 
 # This is just for running locally and not normally built
@@ -40,22 +55,22 @@ data/gschemas.compiled: $(gsettings_SCHEMAS)
 	$(AM_V_GEN) $(GLIB_COMPILE_SCHEMAS) data
 
 pkgdata_DATA = pithos.gresource
-noinst_DATA = $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=data --generate-dependencies data/pithos.gresource.xml)
-pithos.gresource: data/pithos.gresource.xml $(noinst_DATA)
+noinst_DATA = $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=data --generate-dependencies data/io.github.Pithos.gresource.xml)
+pithos.gresource: data/io.github.Pithos.gresource.xml $(noinst_DATA)
 	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=$(top_srcdir)/data --generate $<
 
-desktop_in_files = data/pithos.desktop.in
+desktop_in_files = data/io.github.Pithos.desktop.in
 desktop_FILES = $(desktop_in_files:.desktop.in=.desktop)
 @INTLTOOL_DESKTOP_RULE@
 @DESKTOP_FILE_RULES@
 
-appstream_in_files = data/pithos.appdata.xml.in
+appstream_in_files = data/io.github.Pithos.appdata.xml.in
 appstream_XML = $(appstream_in_files:.xml.in=.xml)
 @INTLTOOL_XML_RULE@
 @APPSTREAM_XML_RULES@
 
 hicolor_scalabledir = $(datadir)/icons/hicolor/scalable/apps
-hicolor_scalable_DATA = data/icons/hicolor/scalable/apps/pithos.svg \
+hicolor_scalable_DATA = data/icons/hicolor/scalable/apps/io.github.Pithos.svg \
                         data/icons/hicolor/scalable/apps/pithos-tray-icon.svg
 
 hicolordir = $(datadir)/icons/hicolor/48x48/apps
@@ -78,9 +93,10 @@ uninstall-hook:
 BUILT_SOURCES = pithos.gresource
 SUBDIRS = po
 CLEANFILES = $(pkgdata_DATA) $(bin_SCRIPTS) $(desktop_FILES) $(appstream_XML) data/gschemas.compiled
-EXTRA_DIST = license README.md autogen.sh requirements-osx.txt bin/pithos.in data/pithos.gresource.xml \
+DISTCLEANFILES = $(man1_MANS)
+EXTRA_DIST = license README.md autogen.sh requirements-osx.txt bin/pithos.in data/io.github.Pithos.gresource.xml \
 	$(appstream_in_files) $(desktop_in_files) $(noinst_DATA) $(gsettings_SCHEMAS) $(hicolor_DATA) \
-	$(hicolor_scalable_DATA) $(ubuntu_light_DATA) $(ubuntu_dark_DATA)
+	$(hicolor_scalable_DATA) $(ubuntu_light_DATA) $(ubuntu_dark_DATA) $(man1_MANS)
 
 # -------------- docs ---------------
 
@@ -106,6 +122,6 @@ uninstall-local:
 clean-local:
 	rm -rf docs/html
 
-EXTRA_DIST += docs/conf.py docs/index.rst
-
 endif
+
+EXTRA_DIST += docs/conf.py docs/index.rst

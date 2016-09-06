@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil; -*-
 ### BEGIN LICENSE
 # Copyright (C) 2015 Patrick Griffis <tingping@tingping.se>
@@ -58,7 +57,8 @@ def maybe_migrate_settings():
     ignore_migration = (
         'unsafe_permissions',
         'x_pos',
-        'y_pos'
+        'y_pos',
+        'audio_format' # Pre 0.3.18
     )
 
     settings = Gio.Settings.new('io.github.Pithos')

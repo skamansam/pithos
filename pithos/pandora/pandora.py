@@ -123,8 +123,8 @@ class Pandora:
 
         try:
             req = urllib.request.Request(url, data, {'User-agent': USER_AGENT, 'Content-type': 'text/plain'})
-            response = self.opener.open(req, timeout=HTTP_TIMEOUT)
-            text = response.read().decode('utf-8')
+            with self.opener.open(req, timeout=HTTP_TIMEOUT) as response:
+                text = response.read().decode('utf-8')
         except urllib.error.HTTPError as e:
             logging.error("HTTP error: %s", e)
             raise PandoraNetError(str(e))
@@ -324,7 +324,11 @@ class Station:
 
     def get_playlist(self):
         logging.info("pandora: Get Playlist")
-        playlist = self.pandora.json_call('station.getPlaylist', {'stationToken': self.idToken, 'includeTrackLength': True}, https=True)
+        playlist = self.pandora.json_call('station.getPlaylist', {
+                        'stationToken': self.idToken,
+                        'includeTrackLength': True,
+                        'additionalAudioUrl': 'HTTP_32_AACPLUS,HTTP_128_MP3',
+                    }, https=True)
         songs = []
         for i in playlist['items']:
             if 'songName' in i: # check for ads
@@ -360,7 +364,6 @@ class Song:
 
         self.album = d['albumName']
         self.artist = d['artistName']
-        self.audioUrlMap = d['audioUrlMap']
         self.trackToken = d['trackToken']
         self.rating = RATE_LOVE if d['songRating'] == 1 else RATE_NONE # banned songs won't play, so we don't care about them
         self.stationId = d['stationId']
@@ -370,7 +373,26 @@ class Song:
         self.artRadio = d['albumArtUrl']
         self.trackLength = d['trackLength']
 
-        self.bitrate = None
+        self.audioUrlMap = d['audioUrlMap']
+
+        # Optionally we requested more URLs
+        if len(d.get('additionalAudioUrl', [])) == 2:
+            if int(self.audioUrlMap['highQuality']['bitrate']) < 128:
+                # We can use the higher quality mp3 stream for non-one users
+                self.audioUrlMap['mediumQuality'] = self.audioUrlMap['highQuality']
+                self.audioUrlMap['highQuality'] = {
+                    'encoding': 'mp3',
+                    'bitrate': '128',
+                    'audioUrl': d['additionalAudioUrl'][1],
+                }
+            else:
+                # And we can offer a lower bandwidth option for one users
+                self.audioUrlMap['lowQuality'] = {
+                    'encoding': 'aacplus',
+                    'bitrate': '32',
+                    'audioUrl': d['additionalAudioUrl'][0],
+                }
+
         self.is_ad = None  # None = we haven't checked, otherwise True/False
         self.tired=False
         self.message=''
@@ -395,8 +417,8 @@ class Song:
                 self._title = self.songName
             else:
                 try:
-                    xml_data = urllib.request.urlopen(self.songExplorerUrl)
-                    dom = minidom.parseString(xml_data.read())
+                    with urllib.request.urlopen(self.songExplorerUrl) as xml_data:
+                        dom = minidom.parseString(xml_data.read())
                     attr_value = dom.getElementsByTagName('songExplorer')[0].attributes['songTitle'].value
 
                     # Pandora stores their titles for film scores and the like as 'Score name: song name'
@@ -410,11 +432,13 @@ class Song:
         quality = self.pandora.audio_quality
         try:
             q = self.audioUrlMap[quality]
+            self.bitrate = q['bitrate']
             logging.info("Using audio quality %s: %s %s", quality, q['bitrate'], q['encoding'])
             return q['audioUrl']
         except KeyError:
             logging.warning("Unable to use audio format %s. Using %s",
                            quality, list(self.audioUrlMap.keys())[0])
+            self.bitrate = list(self.audioUrlMap.values())[0]['bitrate']
             return list(self.audioUrlMap.values())[0]['audioUrl']
 
     @property

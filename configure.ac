@@ -1,5 +1,5 @@
 AC_PREREQ(2.68)
-AC_INIT([pithos], [1.1.1], [https://github.com/pithos/pithos/issues],
+AC_INIT([pithos], [1.2.1], [https://github.com/pithos/pithos/issues],
                            [pithos], [https://pithos.github.io])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -13,15 +13,17 @@ GETTEXT_PACKAGE=pithos
 AC_SUBST(GETTEXT_PACKAGE)
 
 m4_ifndef([GLIB_GSETTINGS], [AC_MSG_ERROR([gsettings.m4 not found])])
+m4_ifndef([APPSTREAM_XML], [AC_MSG_ERROR([appstream-xml.m4 not found])])
 
 IT_PROG_INTLTOOL([0.50.0])
 DESKTOP_FILE
 APPSTREAM_XML
 GLIB_GSETTINGS
-
+AC_PROG_SED
 AC_PATH_PROG(GLIB_COMPILE_RESOURCES, glib-compile-resources)
 
-AC_ARG_WITH(docs, AS_HELP_STRING([--with-docs], [Build documentation with Sphinx]))
+AC_ARG_WITH(docs, AS_HELP_STRING([--with-docs], [Build documentation with Sphinx]),
+            [with_docs=$withval], [with_docs=no])
 AS_IF([test "$with_docs" = "yes"], [
     AC_PATH_PROG(SPHINX_BUILD, sphinx-build, [no])
 	AS_IF([test "$SPHINX_BUILD" = "no"], [
@@ -29,6 +31,9 @@ AS_IF([test "$with_docs" = "yes"], [
 	])
 ])
 AM_CONDITIONAL([WITH_DOCS], [test "$with_docs" = "yes"])
+
+AC_PATH_PROG([HELP2MAN], [help2man], [no])
+AM_CONDITIONAL([HAVE_HELP2MAN], [test "$HELP2MAN" != "no"])
 
 AC_CONFIG_FILES([
     Makefile

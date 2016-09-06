@@ -27,6 +27,8 @@ from .pithos import PithosWindow
 from .migrate_settings import maybe_migrate_settings
 
 class PithosApplication(Gtk.Application):
+    __gtype_name__ = 'PithosApplication'
+
     def __init__(self, version=''):
         super().__init__(application_id='io.github.Pithos',
                                 flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
@@ -63,6 +65,14 @@ class PithosApplication(Gtk.Application):
         action.connect("activate", self.quit_cb)
         self.add_action(action)
 
+        if Gtk.get_major_version() > 3 or Gtk.get_minor_version() >= 20:
+            menu = self.get_app_menu()
+            it = menu.iterate_item_links(menu.get_n_items() - 1)
+            assert(it.next())
+            last_section = it.get_value()
+            shortcuts_item = Gio.MenuItem.new(_('Keyboard Shortcuts'), 'win.show-help-overlay')
+            last_section.prepend_item(shortcuts_item)
+
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()
 
@@ -76,7 +86,22 @@ class PithosApplication(Gtk.Application):
             type(command_line).do_print_literal(command_line, "Pithos {}\n".format(self.version))
             return 0
 
-        #set the logging level to show debug messages
+        handlers = []
+        try:
+            from systemd.journal import JournalHandler
+
+            journal = JournalHandler(SYSLOG_IDENTIFIER=self.props.application_id)
+
+            # We can be more verbose with the journal and filter it later
+            # and don't need fancy formatting as its part of the structure
+            journal.setLevel(logging.INFO)
+            journal.setFormatter(logging.Formatter())
+
+            handlers.append(journal)
+        except ImportError:
+            pass
+
+        # Set the logging level to show debug messages
         if options.contains('debug'):
             log_level = logging.DEBUG
         elif options.contains('verbose'):
@@ -84,7 +109,12 @@ class PithosApplication(Gtk.Application):
         else:
             log_level = logging.WARN
 
-        logging.basicConfig(level=log_level, format='%(levelname)s - %(module)s:%(funcName)s:%(lineno)d - %(message)s')
+        stream = logging.StreamHandler()
+        stream.setLevel(log_level)
+        stream.setFormatter(logging.Formatter(fmt='%(levelname)s - %(module)s:%(funcName)s:%(lineno)d - %(message)s'))
+        handlers.append(stream)
+
+        logging.basicConfig(level=logging.NOTSET, handlers=handlers)
 
         self.test_mode = options.lookup_value('test')
 
